@@ -1,74 +1,42 @@
 FROM debian:buster-slim
 
-RUN set -ex \
-    # Official Mopidy install for Debian/Ubuntu along with some extensions
-    # (see https://docs.mopidy.com/en/latest/installation/debian/ )
- && apt-get update \
- && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        curl \
-        dumb-init \
-        gnupg \
-        gstreamer1.0-alsa \
-        gstreamer1.0-plugins-bad \
-        python3-crypto \
-        python3-distutils \
- && curl -L https://bootstrap.pypa.io/get-pip.py | python3 - \
- && pip install pipenv \
-    # Clean-up
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache
+RUN apt-get update
+RUN apt-get install -y wget gnupg
 
-RUN set -ex \
- && curl -L https://apt.mopidy.com/mopidy.gpg | apt-key add - \
- && curl -L https://apt.mopidy.com/mopidy.list -o /etc/apt/sources.list.d/mopidy.list \
- && apt-get update \
- && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        mopidy \
-        mopidy-soundcloud \
-        mopidy-spotify \
-    # Clean-up
- && apt-get purge --auto-remove -y \
-        gcc \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache
+RUN wget -q -O - https://apt.mopidy.com/mopidy.gpg | apt-key add -
+RUN wget -q -O /etc/apt/sources.list.d/mopidy.list https://apt.mopidy.com/buster.list
+RUN apt-get update --fix-missing
 
-COPY Pipfile Pipfile.lock /
+RUN apt-get install -y build-essential python3-dev python3-pip
+RUN apt-get install -y \
+    python3-gst-1.0 \
+    gir1.2-gstreamer-1.0 \
+    gir1.2-gst-plugins-base-1.0 \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-tools
 
-RUN set -ex \
- && pipenv install --system --deploy --python=$(which python3)
+# needed for spotify extension
+RUN apt-get install -y libspotify12 python3-spotify
 
-RUN set -ex \
- && mkdir -p /var/lib/mopidy/.config \
- && ln -s /config /var/lib/mopidy/.config/mopidy
+# install mopidy
+RUN python3 -m pip install --upgrade mopidy
 
-# Start helper script.
-COPY entrypoint.sh /entrypoint.sh
+# install mopidy extensions
+RUN python3 -m pip install Mopidy-Spotify
+RUN python3 -m pip install Mopidy-MPD
+RUN python3 -m pip install Mopidy-TuneIn
+RUN python3 -m pip install Mopidy-Moped
+RUN python3 -m pip install Mopidy-Party
+RUN python3 -m pip install Mopidy-GMusic
+RUN python3 -m pip install Mopidy-Local
+RUN python3 -m pip install Mopidy-SoundCloud
+RUN python3 -m pip install Mopidy-YouTube
+RUN python3 -m pip install Mopidy-Iris
 
-# Default configuration.
-COPY mopidy.conf /config/mopidy.conf
+# install mopidy.conf and startup script
+COPY mopidy.conf /root/.config/mopidy_default.conf
+COPY mopidy.sh /usr/local/bin/mopidy.sh
 
-# Copy the pulse-client configuratrion.
-COPY pulse-client.conf /etc/pulse/client.conf
-
-# Allows any user to run mopidy, but runs by default as a randomly generated UID/GID.
-ENV HOME=/var/lib/mopidy
-RUN set -ex \
- && usermod -G audio,sudo mopidy \
- && chown mopidy:audio -R $HOME /entrypoint.sh \
- && chmod go+rwx -R $HOME /entrypoint.sh
-
-# Runs as mopidy user by default.
-USER mopidy
-
-# Basic check,
-RUN /usr/bin/dumb-init /entrypoint.sh /usr/bin/mopidy --version
-
-VOLUME ["/var/lib/mopidy/local", "/var/lib/mopidy/media"]
-
-EXPOSE 6600 6680 5555/udp
-
-ENTRYPOINT ["/usr/bin/dumb-init", "/entrypoint.sh"]
-CMD ["/usr/bin/mopidy"]
-
-HEALTHCHECK --interval=5s --timeout=2s --retries=20 \
-    CMD curl --connect-timeout 5 --silent --show-error --fail http://localhost:6680/ || exit 1
+EXPOSE 6600 6680
+ENTRYPOINT ["/usr/local/bin/mopidy.sh"]
