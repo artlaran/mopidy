@@ -38,8 +38,6 @@ RUN python3 -m pip install Mopidy-Iris
 COPY mopidy.conf /root/.config/mopidy_default.conf
 COPY mopidy.sh /usr/local/bin/mopidy.sh
 
-RUN usermod -G audio,sudo mopidy
-RUN chown mopidy:audio -R /usr/local/bin/mopidy.sh
 RUN chmod go+rwx -R /usr/local/bin/mopidy.sh
 
 EXPOSE 6600 6680
