@@ -1,0 +1,3 @@
+# mopidy
+
+Mopidy in Docker
