@@ -5,7 +5,8 @@ RUN apt-get update \
     && apt-get install -y \
     dumb-init \
     wget \
-    gnupg
+    gnupg \
+    curl
 
 # add mopidy repository + install mopidy
 RUN wget -q -O - https://apt.mopidy.com/mopidy.gpg | apt-key add - \
@@ -44,7 +45,12 @@ RUN set -ex \
 
 USER mopidy
 
+VOLUME ["/var/lib/mopidy/local", "/var/lib/mopidy/media"]
+
 EXPOSE 6600 6680 5555/udp
 
 ENTRYPOINT ["/usr/bin/dumb-init"]
 CMD ["mopidy"]
+
+HEALTHCHECK --interval=5s --timeout=2s --retries=20 \
+    CMD curl --connect-timeout 5 --silent --show-error --fail http://localhost:6680/ || exit 1
