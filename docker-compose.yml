@@ -1,0 +1,26 @@
+#docker-compose up -d
+#docker compose down
+#docker-compose restart
+
+#update:
+#docker-compose pull
+#docker-compose build
+
+
+version: '3.7'
+
+services:
+#********* MOPIDY **********
+  mopidy:
+    container_name: mopidy
+    image: artlaran/mopidy
+    restart: unless-stopped
+#    devices:
+#      - /dev/snd:/dev/snd
+    ports:
+      - 6680:6680
+      - 6600:6600
+      - 5555:5555
+    volumes:
+      - ./volumes/mopidy/data:/var/lib/mopidy/local
+      - ./volumes/mopidy/media:/var/lib/mopidy/media:ro
