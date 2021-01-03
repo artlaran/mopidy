@@ -1,44 +1,50 @@
 FROM debian:buster-slim
 
-RUN apt-get update
-RUN apt-get install -y wget gnupg
+# install dependencys
+RUN apt-get update \
+    && apt-get install -y \
+    dumb-init \
+    wget \
+    gnupg
 
-RUN wget -q -O - https://apt.mopidy.com/mopidy.gpg | apt-key add -
-RUN wget -q -O /etc/apt/sources.list.d/mopidy.list https://apt.mopidy.com/buster.list
-RUN apt-get update --fix-missing
-
-RUN apt-get install -y build-essential python3-dev python3-pip
-RUN apt-get install -y \
-    python3-gst-1.0 \
-    gir1.2-gstreamer-1.0 \
-    gir1.2-gst-plugins-base-1.0 \
-    gstreamer1.0-plugins-good \
-    gstreamer1.0-plugins-ugly \
-    gstreamer1.0-tools
+# add mopidy repository + install mopidy
+RUN wget -q -O - https://apt.mopidy.com/mopidy.gpg | apt-key add - \
+    && wget -q -O /etc/apt/sources.list.d/mopidy.list https://apt.mopidy.com/buster.list \
+    && apt-get update --fix-missing \
+    && apt-get install -y mopidy
 
 # needed for spotify extension
-RUN apt-get install -y libspotify12 python3-spotify
-
-# install mopidy
-RUN python3 -m pip install --upgrade mopidy
+RUN apt-get install -y libspotify12 python3-spotify python3-pip
 
 # install mopidy extensions
-RUN python3 -m pip install Mopidy-Spotify
-RUN python3 -m pip install Mopidy-MPD
-RUN python3 -m pip install Mopidy-TuneIn
-RUN python3 -m pip install Mopidy-Moped
-RUN python3 -m pip install Mopidy-Party
-RUN python3 -m pip install Mopidy-GMusic
-RUN python3 -m pip install Mopidy-Local
-RUN python3 -m pip install Mopidy-SoundCloud
-RUN python3 -m pip install Mopidy-YouTube
-RUN python3 -m pip install Mopidy-Iris
+RUN python3 -m pip install \
+    Mopidy-Spotify \
+    Mopidy-MPD \
+    Mopidy-TuneIn \
+    Mopidy-Moped \
+    Mopidy-Party \
+    Mopidy-GMusic \
+    Mopidy-Local \
+    Mopidy-SoundCloud \
+    Mopidy-YouTube \
+    Mopidy-Iris
 
-# install mopidy.conf and startup script
-COPY mopidy.conf /root/.config/mopidy_default.conf
-COPY mopidy.sh /usr/local/bin/mopidy.sh
+RUN set -ex \
+    && mkdir -p /var/lib/mopidy/.config \
+    && ln -s /config /var/lib/mopidy/.config/mopidy
 
-RUN chmod go+rwx -R /usr/local/bin/mopidy.sh
+# Default configuration.
+COPY mopidy.conf /config/mopidy.conf
 
-EXPOSE 6600 6680
-ENTRYPOINT ["/usr/local/bin/mopidy.sh"]
+ENV HOME=/var/lib/mopidy
+RUN set -ex \
+    && usermod -G audio,sudo mopidy \
+    && chown mopidy:audio -R $HOME \
+    && chmod go+rwx -R $HOME
+
+USER mopidy
+
+EXPOSE 6600 6680 5555/udp
+
+ENTRYPOINT ["/usr/bin/dumb-init"]
+CMD ["mopidy"]

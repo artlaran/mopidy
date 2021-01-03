@@ -1,0 +1,5 @@
+build docker image:
+docker build -t mopidy .
+
+run docker image:
+docker run -it -p 6680:6680 mopidy
